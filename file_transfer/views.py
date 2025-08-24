@@ -1,15 +1,84 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
-from django.http import HttpResponse, Http404
+from django.http import HttpResponse, Http404, JsonResponse
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.utils import timezone
 from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
 import os
+import json
 from .models import FileTransfer
-from .forms import FileUploadForm
+from .forms import FileUploadForm, UserRegistrationForm
 from django.db import models
+
+def custom_login(request):
+    """自定义登录视图"""
+    if request.user.is_authenticated:
+        return redirect('file_transfer:dashboard')
+    
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        user = authenticate(request, username=username, password=password)
+        
+        if user is not None:
+            login(request, user)
+            # 设置会话最后活动时间
+            request.session['last_activity'] = timezone.now().isoformat()
+            messages.success(request, f'欢迎回来，{user.username}！')
+            return redirect('file_transfer:dashboard')
+        else:
+            messages.error(request, '用户名或密码错误')
+    
+    return render(request, 'file_transfer/login.html', {
+        'title': '用户登录'
+    })
+
+def custom_logout(request):
+    """自定义登出视图"""
+    logout(request)
+    messages.success(request, '您已成功退出登录')
+    return redirect('file_transfer:custom_login')
+
+@csrf_exempt
+def check_session(request):
+    """检查会话状态的API端点"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            action = data.get('action')
+            
+            if action == 'heartbeat':
+                # 更新最后活动时间
+                request.session['last_activity'] = timezone.now().isoformat()
+                return JsonResponse({'status': 'ok', 'message': 'Session updated'})
+            
+            elif action == 'check':
+                # 检查会话是否有效
+                if request.user.is_authenticated:
+                    last_activity = request.session.get('last_activity')
+                    if last_activity:
+                        last_activity = timezone.datetime.fromisoformat(last_activity)
+                        time_diff = timezone.now() - last_activity
+                        
+                        if time_diff.total_seconds() > 300:  # 5分钟
+                            logout(request)
+                            return JsonResponse({
+                                'status': 'expired', 
+                                'message': 'Session expired due to inactivity'
+                            })
+                    
+                    return JsonResponse({'status': 'valid', 'message': 'Session is valid'})
+                else:
+                    return JsonResponse({'status': 'invalid', 'message': 'User not authenticated'})
+                    
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON'})
+    
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method'})
 
 @login_required
 def file_upload(request):
@@ -157,4 +226,23 @@ def dashboard(request):
         'recent_files': recent_files,
         'file_type_stats': file_type_stats,
         'title': '仪表板'
+    })
+
+def user_register(request):
+    """用户注册视图"""
+    if request.user.is_authenticated:
+        return redirect('file_transfer:dashboard')
+    
+    if request.method == 'POST':
+        form = UserRegistrationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            messages.success(request, f'账户 {user.username} 创建成功！请登录。')
+            return redirect('file_transfer:custom_login')
+    else:
+        form = UserRegistrationForm()
+    
+    return render(request, 'file_transfer/register.html', {
+        'form': form,
+        'title': '用户注册'
     })
