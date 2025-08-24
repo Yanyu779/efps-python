@@ -1,0 +1,74 @@
+{% extends 'file_transfer/base.html' %}
+
+{% block title %}确认删除 - 文件传输系统{% endblock %}
+
+{% block page_title %}确认删除文件{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>删除确认
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>警告：</strong>此操作不可撤销，文件将被永久删除！
+                </div>
+                
+                <div class="mb-4">
+                    <h6>要删除的文件信息：</h6>
+                    <ul class="list-unstyled">
+                        <li><strong>文件名：</strong> {{ file_transfer.original_name }}</li>
+                        <li><strong>文件大小：</strong> {{ file_transfer.get_file_size_display }}</li>
+                        <li><strong>上传时间：</strong> {{ file_transfer.uploaded_at|date:"Y-m-d H:i:s" }}</li>
+                        {% if file_transfer.description %}
+                            <li><strong>描述：</strong> {{ file_transfer.description|truncatechars:100 }}</li>
+                        {% endif %}
+                    </ul>
+                </div>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-danger btn-lg">
+                            <i class="fas fa-trash me-2"></i>确认删除
+                        </button>
+                        <a href="{% url 'file_transfer:file_detail' file_transfer.id %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-2"></i>取消
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- 注意事项 -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-info-circle me-2"></i>注意事项
+                </h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2">
+                        <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                        删除后文件将无法恢复
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                        如果其他用户正在下载此文件，删除操作可能会失败
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                        建议在删除前确认文件不再需要
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

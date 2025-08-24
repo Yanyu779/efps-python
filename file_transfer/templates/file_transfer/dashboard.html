@@ -1,0 +1,178 @@
+{% extends 'file_transfer/base.html' %}
+
+{% block title %}仪表板 - 文件传输系统{% endblock %}
+
+{% block page_title %}仪表板{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- 统计卡片 -->
+    <div class="col-md-3 mb-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ total_files }}</h4>
+                        <p class="card-text">总文件数</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-file fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ total_size|filesizeformat }}</h4>
+                        <p class="card-text">总存储空间</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-hdd fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ status_stats.已完成|default:0 }}</h4>
+                        <p class="card-text">已完成</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ status_stats.待处理|default:0 }}</h4>
+                        <p class="card-text">待处理</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 最近上传的文件 -->
+    <div class="col-md-8 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-clock me-2"></i>最近上传的文件
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if recent_files %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>文件名</th>
+                                    <th>大小</th>
+                                    <th>状态</th>
+                                    <th>上传时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for file in recent_files %}
+                                <tr>
+                                    <td>
+                                        <i class="fas fa-file me-2"></i>
+                                        <a href="{% url 'file_transfer:file_detail' file.id %}">
+                                            {{ file.original_name|truncatechars:30 }}
+                                        </a>
+                                    </td>
+                                    <td>{{ file.get_file_size_display }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if file.status == 'completed' %}success{% elif file.status == 'failed' %}danger{% elif file.status == 'processing' %}warning{% else %}secondary{% endif %}">
+                                            {{ file.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ file.uploaded_at|date:"Y-m-d H:i" }}</td>
+                                    <td>
+                                        <a href="{% url 'file_transfer:file_download' file.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-download"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center py-4">暂无文件记录</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- 文件类型统计 -->
+    <div class="col-md-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-pie me-2"></i>文件类型统计
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if file_type_stats %}
+                    <div class="list-group list-group-flush">
+                        {% for stat in file_type_stats %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <span class="text-truncate">{{ stat.file_type|default:"未知类型" }}</span>
+                            <span class="badge bg-primary rounded-pill">{{ stat.count }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center py-4">暂无数据</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 快速操作 -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-bolt me-2"></i>快速操作
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex gap-2">
+                    <a href="{% url 'file_transfer:file_upload' %}" class="btn btn-primary">
+                        <i class="fas fa-upload me-2"></i>上传新文件
+                    </a>
+                    <a href="{% url 'file_transfer:file_history' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-history me-2"></i>查看历史
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
