@@ -1,0 +1,196 @@
+{% extends 'file_transfer/base.html' %}
+
+{% block title %}会话信息 - 文件传输系统{% endblock %}
+
+{% block page_title %}会话信息{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-clock me-2"></i>当前会话状态
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-4">用户名：</dt>
+                            <dd class="col-sm-8">{{ session_data.username }}</dd>
+                            
+                            <dt class="col-sm-4">登录时间：</dt>
+                            <dd class="col-sm-8">
+                                {% if session_data.login_time %}
+                                    {{ session_data.login_time|date:"Y-m-d H:i:s" }}
+                                {% else %}
+                                    <span class="text-muted">未知</span>
+                                {% endif %}
+                            </dd>
+                            
+                            <dt class="col-sm-4">最后活动：</dt>
+                            <dd class="col-sm-8">
+                                {% if session_data.last_activity %}
+                                    {{ session_data.last_activity|date:"Y-m-d H:i:s" }}
+                                {% else %}
+                                    <span class="text-muted">未知</span>
+                                {% endif %}
+                            </dd>
+                        </dl>
+                    </div>
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-4">会话时长：</dt>
+                            <dd class="col-sm-8">
+                                {% if session_data.session_age > 0 %}
+                                    {{ session_data.session_age|floatformat:0 }} 秒
+                                {% else %}
+                                    <span class="text-muted">未知</span>
+                                {% endif %}
+                            </dd>
+                            
+                            <dt class="col-sm-4">空闲时间：</dt>
+                            <dd class="col-sm-8">
+                                {% if session_data.idle_time > 0 %}
+                                    {{ session_data.idle_time|floatformat:0 }} 秒
+                                {% else %}
+                                    <span class="text-muted">0 秒</span>
+                                {% endif %}
+                            </dd>
+                            
+                            <dt class="col-sm-4">剩余时间：</dt>
+                            <dd class="col-sm-8">
+                                {% if session_data.session_expires_in > 0 %}
+                                    <span class="badge bg-{% if session_data.session_expires_in < 60 %}danger{% elif session_data.session_expires_in < 120 %}warning{% else %}success{% endif %}">
+                                        {{ session_data.session_expires_in|floatformat:0 }} 秒
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-danger">已过期</span>
+                                {% endif %}
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+                
+                <!-- 会话状态指示器 -->
+                <div class="mt-4">
+                    <h6>会话状态：</h6>
+                    <div class="progress mb-3" style="height: 25px;">
+                        {% if session_data.session_expires_in > 0 %}
+                            {% widthratio session_data.session_expires_in 300 100 as progress_percent %}
+                            <div class="progress-bar bg-{% if session_data.session_expires_in < 60 %}danger{% elif session_data.session_expires_in < 120 %}warning{% else %}success{% endif %}" 
+                                 role="progressbar" 
+                                 style="width: {{ progress_percent }}%"
+                                 aria-valuenow="{{ progress_percent }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                                {{ session_data.session_expires_in|floatformat:0 }} 秒
+                            </div>
+                        {% else %}
+                            <div class="progress-bar bg-danger" role="progressbar" style="width: 0%">
+                                会话已过期
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- 操作按钮 -->
+                <div class="mt-4 d-flex gap-2">
+                    <form method="post" action="{% url 'file_transfer:extend_session' %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-sync-alt me-2"></i>延长会话
+                        </button>
+                    </form>
+                    
+                    <a href="{% url 'logout' %}" class="btn btn-outline-danger">
+                        <i class="fas fa-sign-out-alt me-2"></i>退出登录
+                    </a>
+                    
+                    <a href="{% url 'file_transfer:dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>返回仪表板
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 安全提示 -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-shield-alt me-2"></i>安全提示
+                </h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2">
+                        <i class="fas fa-info-circle text-info me-2"></i>
+                        系统将在5分钟无操作后自动登出
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-info-circle text-info me-2"></i>
+                        每次页面访问都会重置会话计时器
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-info-circle text-info me-2"></i>
+                        关闭浏览器后会话将自动失效
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                        请勿在公共设备上保持登录状态
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 实时更新会话剩余时间
+function updateSessionTimer() {
+    const progressBar = document.querySelector('.progress-bar');
+    const timeDisplay = document.querySelector('.progress-bar');
+    
+    if (progressBar && timeDisplay) {
+        // 这里可以添加实时倒计时逻辑
+        // 由于页面刷新会重置计时器，主要依赖服务器端验证
+    }
+}
+
+// 页面活动检测
+let lastActivity = Date.now();
+const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+
+activityEvents.forEach(event => {
+    document.addEventListener(event, function() {
+        lastActivity = Date.now();
+    });
+});
+
+// 定期检查活动状态
+setInterval(function() {
+    const now = Date.now();
+    const timeSinceLastActivity = now - lastActivity;
+    
+    // 如果超过4分钟没有活动，显示警告
+    if (timeSinceLastActivity > 240000) { // 4分钟
+        const warningDiv = document.createElement('div');
+        warningDiv.className = 'alert alert-warning alert-dismissible fade show';
+        warningDiv.innerHTML = `
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>会话即将过期！</strong> 您已经 ${Math.floor(timeSinceLastActivity / 60000)} 分钟没有操作，请及时活动以避免自动登出。
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        // 检查是否已经显示过警告
+        if (!document.querySelector('.session-warning')) {
+            warningDiv.classList.add('session-warning');
+            document.querySelector('.container').insertBefore(warningDiv, document.querySelector('.container').firstChild);
+        }
+    }
+}, 30000); // 每30秒检查一次
+</script>
+{% endblock %}

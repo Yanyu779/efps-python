@@ -18,10 +18,15 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from file_transfer import auth_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('file_transfer.urls')),
+    
+    # 认证路由
+    path('login/', auth_views.login_view, name='login'),
+    path('logout/', auth_views.logout_view, name='logout'),
 ]
 
 # 在开发环境中提供媒体文件服务
