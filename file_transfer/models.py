@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django.core.exceptions import PermissionDenied
 import os
 
 class FileTransfer(models.Model):
@@ -29,9 +30,67 @@ class FileTransfer(models.Model):
         verbose_name = '文件传输'
         verbose_name_plural = '文件传输'
         ordering = ['-uploaded_at']
+        # 添加权限
+        permissions = [
+            ("can_upload_file", "可以上传文件"),
+            ("can_download_file", "可以下载文件"),
+            ("can_delete_file", "可以删除文件"),
+            ("can_view_file", "可以查看文件"),
+        ]
     
     def __str__(self):
         return f"{self.original_name} - {self.uploaded_by.username}"
+    
+    def can_access(self, user):
+        """检查用户是否可以访问此文件"""
+        if not user.is_authenticated:
+            return False
+        
+        # 文件所有者可以访问
+        if user == self.uploaded_by:
+            return True
+        
+        # 超级用户可以访问所有文件
+        if user.is_superuser:
+            return True
+        
+        # 这里可以添加更多的权限检查逻辑
+        # 例如：用户组权限、共享权限等
+        
+        return False
+    
+    def can_download(self, user):
+        """检查用户是否可以下载此文件"""
+        if not self.can_access(user):
+            return False
+        
+        # 检查文件是否存在
+        if not os.path.exists(self.file_path.path):
+            return False
+        
+        return True
+    
+    def can_delete(self, user):
+        """检查用户是否可以删除此文件"""
+        if not self.can_access(user):
+            return False
+        
+        # 只有文件所有者和管理员可以删除
+        if user == self.uploaded_by or user.is_superuser:
+            return True
+        
+        return False
+    
+    def can_modify(self, user):
+        """检查用户是否可以修改此文件"""
+        if not self.can_access(user):
+            return False
+        
+        # 只有文件所有者和管理员可以修改
+        if user == self.uploaded_by or user.is_superuser:
+            return True
+        
+        return False
     
     def get_file_size_display(self):
         """返回人类可读的文件大小"""
@@ -52,3 +111,44 @@ class FileTransfer(models.Model):
         """判断是否为图片文件"""
         image_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']
         return self.get_file_extension().lower() in image_extensions
+    
+    def get_absolute_url(self):
+        """获取文件的绝对URL"""
+        from django.urls import reverse
+        return reverse('file_transfer:file_detail', args=[str(self.id)])
+    
+    def get_download_url(self):
+        """获取下载URL"""
+        from django.urls import reverse
+        return reverse('file_transfer:file_download', args=[str(self.id)])
+    
+    def get_delete_url(self):
+        """获取删除URL"""
+        from django.urls import reverse
+        return reverse('file_transfer:file_delete', args=[str(self.id)])
+    
+    def safe_delete(self, user):
+        """安全删除文件"""
+        if not self.can_delete(user):
+            raise PermissionDenied("您没有权限删除此文件")
+        
+        try:
+            # 删除物理文件
+            if os.path.exists(self.file_path.path):
+                os.remove(self.file_path.path)
+            
+            # 删除数据库记录
+            self.delete()
+            return True
+        except Exception as e:
+            raise Exception(f"删除文件失败: {str(e)}")
+    
+    def safe_download(self, user):
+        """安全下载文件"""
+        if not self.can_download(user):
+            raise PermissionDenied("您没有权限下载此文件")
+        
+        if not os.path.exists(self.file_path.path):
+            raise FileNotFoundError("文件不存在")
+        
+        return self.file_path.path

@@ -48,9 +48,14 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    
+    # 自定义中间件
     'file_transfer.middleware.SessionTimeoutMiddleware',
     'file_transfer.middleware.ActivityTrackingMiddleware',
     'file_transfer.middleware.SecurityMiddleware',
+    'file_transfer.middleware.AuthenticationEnforcementMiddleware',
+    'file_transfer.middleware.CSRFProtectionMiddleware',
+    'file_transfer.middleware.RequestLoggingMiddleware',
 ]
 
 ROOT_URLCONF = 'file_transfer_system.urls'

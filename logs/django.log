@@ -129,3 +129,35 @@ Traceback (most recent call last):
   File "/workspace/venv/lib/python3.13/site-packages/django/http/request.py", line 202, in get_host
     raise DisallowedHost(msg)
 django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+INFO 2025-08-24 13:51:19,354 autoreload 6355 139724608876800 /workspace/file_transfer/middleware.py changed, reloading.
+INFO 2025-08-24 13:51:19,540 autoreload 6357 140580739621120 /workspace/file_transfer/middleware.py changed, reloading.
+INFO 2025-08-24 13:51:19,578 autoreload 7061 140442015551744 Watching for file changes with StatReloader
+INFO 2025-08-24 13:51:19,756 autoreload 7063 139857410318592 Watching for file changes with StatReloader
+INFO 2025-08-24 14:01:51,440 autoreload 7061 140442015551744 /workspace/file_transfer_system/settings.py changed, reloading.
+INFO 2025-08-24 14:01:51,619 autoreload 7063 139857410318592 /workspace/file_transfer_system/settings.py changed, reloading.
+INFO 2025-08-24 14:01:51,648 autoreload 7143 140632956858624 Watching for file changes with StatReloader
+INFO 2025-08-24 14:01:51,824 autoreload 7151 140039435882752 Watching for file changes with StatReloader
+INFO 2025-08-24 14:02:14,763 autoreload 7143 140632956858624 /workspace/file_transfer/models.py changed, reloading.
+INFO 2025-08-24 14:02:14,937 autoreload 7151 140039435882752 /workspace/file_transfer/models.py changed, reloading.
+INFO 2025-08-24 14:02:14,985 autoreload 7293 140228666110208 Watching for file changes with StatReloader
+INFO 2025-08-24 14:02:15,150 autoreload 7295 140365810594048 Watching for file changes with StatReloader
+INFO 2025-08-24 14:02:22,062 autoreload 7293 140228666110208 /workspace/file_transfer/views.py changed, reloading.
+INFO 2025-08-24 14:02:22,226 autoreload 7295 140365810594048 /workspace/file_transfer/views.py changed, reloading.
+INFO 2025-08-24 14:02:22,273 autoreload 7381 139816372138240 Watching for file changes with StatReloader
+INFO 2025-08-24 14:02:22,446 autoreload 7383 140585698750720 Watching for file changes with StatReloader
+INFO 2025-08-24 14:02:34,535 autoreload 7383 140585698750720 /workspace/file_transfer/views.py changed, reloading.
+INFO 2025-08-24 14:02:34,767 autoreload 7433 139677656645888 Watching for file changes with StatReloader
+INFO 2025-08-24 14:02:35,377 autoreload 7381 139816372138240 /workspace/file_transfer/views.py changed, reloading.
+INFO 2025-08-24 14:02:35,592 autoreload 7435 140016395055360 Watching for file changes with StatReloader
+INFO 2025-08-24 14:02:42,666 autoreload 7435 140016395055360 /workspace/file_transfer/views.py changed, reloading.
+INFO 2025-08-24 14:02:42,846 autoreload 7433 139677656645888 /workspace/file_transfer/views.py changed, reloading.
+INFO 2025-08-24 14:02:42,877 autoreload 7521 140448301240576 Watching for file changes with StatReloader
+INFO 2025-08-24 14:02:43,062 autoreload 7523 140568319967488 Watching for file changes with StatReloader
+INFO 2025-08-24 14:02:58,154 autoreload 7523 140568319967488 /workspace/file_transfer/views.py changed, reloading.
+INFO 2025-08-24 14:02:58,366 autoreload 7579 140426909556992 Watching for file changes with StatReloader
+INFO 2025-08-24 14:02:58,977 autoreload 7521 140448301240576 /workspace/file_transfer/views.py changed, reloading.
+INFO 2025-08-24 14:02:59,191 autoreload 7581 140061890724096 Watching for file changes with StatReloader
+INFO 2025-08-24 14:03:13,284 autoreload 7581 140061890724096 /workspace/file_transfer/views.py changed, reloading.
+INFO 2025-08-24 14:03:13,460 autoreload 7579 140426909556992 /workspace/file_transfer/views.py changed, reloading.
+INFO 2025-08-24 14:03:13,496 autoreload 7699 140140279300352 Watching for file changes with StatReloader
+INFO 2025-08-24 14:03:13,667 autoreload 7701 140576145903872 Watching for file changes with StatReloader

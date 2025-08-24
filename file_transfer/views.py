@@ -36,15 +36,24 @@ def file_download(request, file_id):
     """文件下载视图"""
     file_transfer = get_object_or_404(FileTransfer, id=file_id)
     
-    # 检查文件是否存在
-    if not os.path.exists(file_transfer.file_path.path):
-        raise Http404("文件不存在")
-    
-    # 打开文件并返回响应
-    with open(file_transfer.file_path.path, 'rb') as f:
-        response = HttpResponse(f.read(), content_type=file_transfer.file_type)
-        response['Content-Disposition'] = f'attachment; filename="{file_transfer.original_name}"'
-        return response
+    try:
+        # 使用安全的下载方法
+        file_path = file_transfer.safe_download(request.user)
+        
+        # 打开文件并返回响应
+        with open(file_path, 'rb') as f:
+            response = HttpResponse(f.read(), content_type=file_transfer.file_type)
+            response['Content-Disposition'] = f'attachment; filename="{file_transfer.original_name}"'
+            return response
+    except PermissionDenied:
+        messages.error(request, '您没有权限下载此文件。')
+        return redirect('file_transfer:file_history')
+    except FileNotFoundError:
+        messages.error(request, '文件不存在。')
+        return redirect('file_transfer:file_history')
+    except Exception as e:
+        messages.error(request, f'下载失败：{str(e)}')
+        return redirect('file_transfer:file_history')
 
 @login_required
 def file_history(request):
@@ -54,8 +63,13 @@ def file_history(request):
     status_filter = request.GET.get('status', '')
     file_type_filter = request.GET.get('file_type', '')
     
-    # 构建查询
-    files = FileTransfer.objects.filter(uploaded_by=request.user)
+    # 构建查询 - 只显示用户有权限访问的文件
+    if request.user.is_superuser:
+        # 超级用户可以查看所有文件
+        files = FileTransfer.objects.all()
+    else:
+        # 普通用户只能查看自己的文件
+        files = FileTransfer.objects.filter(uploaded_by=request.user)
     
     if search_query:
         files = files.filter(
@@ -90,7 +104,12 @@ def file_history(request):
 @login_required
 def file_detail(request, file_id):
     """文件详情视图"""
-    file_transfer = get_object_or_404(FileTransfer, id=file_id, uploaded_by=request.user)
+    file_transfer = get_object_or_404(FileTransfer, id=file_id)
+    
+    # 检查用户权限
+    if not file_transfer.can_access(request.user):
+        messages.error(request, '您没有权限查看此文件。')
+        return redirect('file_transfer:file_history')
     
     return render(request, 'file_transfer/detail.html', {
         'file_transfer': file_transfer,
@@ -100,17 +119,21 @@ def file_detail(request, file_id):
 @login_required
 def file_delete(request, file_id):
     """文件删除视图"""
-    file_transfer = get_object_or_404(FileTransfer, id=file_id, uploaded_by=request.user)
+    file_transfer = get_object_or_404(FileTransfer, id=file_id)
+    
+    # 检查用户权限
+    if not file_transfer.can_delete(request.user):
+        messages.error(request, '您没有权限删除此文件。')
+        return redirect('file_transfer:file_history')
     
     if request.method == 'POST':
         try:
-            # 删除物理文件
-            if os.path.exists(file_transfer.file_path.path):
-                os.remove(file_transfer.file_path.path)
-            
-            # 删除数据库记录
-            file_transfer.delete()
+            # 使用安全的删除方法
+            file_transfer.safe_delete(request.user)
             messages.success(request, f'文件 "{file_transfer.original_name}" 已删除')
+            return redirect('file_transfer:file_history')
+        except PermissionDenied:
+            messages.error(request, '您没有权限删除此文件。')
             return redirect('file_transfer:file_history')
         except Exception as e:
             messages.error(request, f'删除失败：{str(e)}')
@@ -123,32 +146,54 @@ def file_delete(request, file_id):
 @login_required
 def dashboard(request):
     """仪表板视图"""
-    # 获取统计数据
-    total_files = FileTransfer.objects.filter(uploaded_by=request.user).count()
-    total_size = FileTransfer.objects.filter(uploaded_by=request.user).aggregate(
-        total_size=models.Sum('file_size')
-    )['total_size'] or 0
-    
-    # 按状态统计
-    status_stats = {}
-    for status_code, status_name in FileTransfer.STATUS_CHOICES:
-        count = FileTransfer.objects.filter(
-            uploaded_by=request.user, 
-            status=status_code
-        ).count()
-        status_stats[status_name] = count
-    
-    # 最近上传的文件
-    recent_files = FileTransfer.objects.filter(
-        uploaded_by=request.user
-    ).order_by('-uploaded_at')[:5]
-    
-    # 按文件类型统计
-    file_type_stats = FileTransfer.objects.filter(
-        uploaded_by=request.user
-    ).values('file_type').annotate(
-        count=models.Count('id')
-    ).order_by('-count')[:10]
+    # 获取统计数据 - 只统计用户有权限访问的文件
+    if request.user.is_superuser:
+        # 超级用户可以查看所有文件的统计
+        total_files = FileTransfer.objects.count()
+        total_size = FileTransfer.objects.aggregate(
+            total_size=models.Sum('file_size')
+        )['total_size'] or 0
+        
+        # 按状态统计
+        status_stats = {}
+        for status_code, status_name in FileTransfer.STATUS_CHOICES:
+            count = FileTransfer.objects.filter(status=status_code).count()
+            status_stats[status_name] = count
+        
+        # 最近上传的文件
+        recent_files = FileTransfer.objects.all().order_by('-uploaded_at')[:5]
+        
+        # 按文件类型统计
+        file_type_stats = FileTransfer.objects.values('file_type').annotate(
+            count=models.Count('id')
+        ).order_by('-count')[:10]
+    else:
+        # 普通用户只能查看自己的文件统计
+        total_files = FileTransfer.objects.filter(uploaded_by=request.user).count()
+        total_size = FileTransfer.objects.filter(uploaded_by=request.user).aggregate(
+            total_size=models.Sum('file_size')
+        )['total_size'] or 0
+        
+        # 按状态统计
+        status_stats = {}
+        for status_code, status_name in FileTransfer.STATUS_CHOICES:
+            count = FileTransfer.objects.filter(
+                uploaded_by=request.user, 
+                status=status_code
+            ).count()
+            status_stats[status_name] = count
+        
+        # 最近上传的文件
+        recent_files = FileTransfer.objects.filter(
+            uploaded_by=request.user
+        ).order_by('-uploaded_at')[:5]
+        
+        # 按文件类型统计
+        file_type_stats = FileTransfer.objects.filter(
+            uploaded_by=request.user
+        ).values('file_type').annotate(
+            count=models.Count('id')
+        ).order_by('-count')[:10]
     
     return render(request, 'file_transfer/dashboard.html', {
         'total_files': total_files,
