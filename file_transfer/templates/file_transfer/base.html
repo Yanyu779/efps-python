@@ -53,14 +53,14 @@
                                 <i class="fas fa-user me-1"></i>{{ user.username }}
                             </a>
                             <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="{% url 'admin:logout' %}">
+                                <li><a class="dropdown-item" href="{% url 'file_transfer:custom_logout' %}">
                                     <i class="fas fa-sign-out-alt me-1"></i>退出登录
                                 </a></li>
                             </ul>
                         </li>
                     {% else %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'admin:login' %}">
+                            <a class="nav-link" href="{% url 'file_transfer:custom_login' %}">
                                 <i class="fas fa-sign-in-alt me-1"></i>登录
                             </a>
                         </li>
@@ -110,5 +110,80 @@
     <script src="{% static 'js/main.js' %}"></script>
     
     {% block extra_js %}{% endblock %}
+    
+    <!-- 会话监控脚本 -->
+    {% if user.is_authenticated %}
+    <script>
+        (function() {
+            let sessionTimeout;
+            const TIMEOUT_MINUTES = 5;
+            const TIMEOUT_MS = TIMEOUT_MINUTES * 60 * 1000;
+            const HEARTBEAT_INTERVAL = 30000; // 30秒发送一次心跳
+            
+            // 更新最后活动时间
+            function updateLastActivity() {
+                fetch('{% url "file_transfer:check_session" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+                    },
+                    body: JSON.stringify({action: 'heartbeat'})
+                }).catch(console.error);
+            }
+            
+            // 检查会话状态
+            function checkSession() {
+                fetch('{% url "file_transfer:check_session" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+                    },
+                    body: JSON.stringify({action: 'check'})
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'expired') {
+                        // 会话过期，显示提示并跳转到登录页
+                        alert('您的会话已过期，请重新登录');
+                        window.location.href = '{% url "file_transfer:custom_login" %}';
+                    }
+                })
+                .catch(console.error);
+            }
+            
+            // 重置超时计时器
+            function resetTimeout() {
+                clearTimeout(sessionTimeout);
+                sessionTimeout = setTimeout(() => {
+                    // 5分钟无操作，自动断开
+                    alert('由于长时间无操作，您的会话已自动断开，请重新登录');
+                    window.location.href = '{% url "file_transfer:custom_login" %}';
+                }, TIMEOUT_MS);
+            }
+            
+            // 监听用户活动
+            const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+            events.forEach(event => {
+                document.addEventListener(event, resetTimeout, true);
+            });
+            
+            // 定期发送心跳
+            setInterval(updateLastActivity, HEARTBEAT_INTERVAL);
+            
+            // 定期检查会话状态
+            setInterval(checkSession, 60000); // 每分钟检查一次
+            
+            // 初始化超时计时器
+            resetTimeout();
+            
+            // 页面卸载前清理
+            window.addEventListener('beforeunload', () => {
+                clearTimeout(sessionTimeout);
+            });
+        })();
+    </script>
+    {% endif %}
 </body>
 </html>

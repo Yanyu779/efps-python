@@ -1,205 +1,129 @@
-// 文件传输系统主要JavaScript功能
+// 文件传输系统主要JavaScript文件
 
+// 全局变量
+let sessionWarningShown = false;
+let sessionTimeoutId = null;
+
+// DOM加载完成后初始化
 document.addEventListener('DOMContentLoaded', function() {
-    // 初始化所有功能
-    initFileUpload();
-    initSearchAndFilter();
-    initTableInteractions();
-    initAnimations();
+    initializeSystem();
 });
 
-// 文件上传功能
-function initFileUpload() {
-    const fileInputs = document.querySelectorAll('input[type="file"]');
+// 系统初始化
+function initializeSystem() {
+    // 初始化工具提示
+    initializeTooltips();
     
-    fileInputs.forEach(input => {
-        // 文件选择时显示文件名
-        input.addEventListener('change', function() {
-            const file = this.files[0];
-            if (file) {
-                displayFileInfo(file, this);
+    // 初始化确认对话框
+    initializeConfirmDialogs();
+    
+    // 初始化文件上传拖拽
+    initializeFileDragAndDrop();
+    
+    // 初始化搜索功能
+    initializeSearch();
+    
+    // 初始化分页
+    initializePagination();
+}
+
+// 初始化Bootstrap工具提示
+function initializeTooltips() {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+}
+
+// 初始化确认对话框
+function initializeConfirmDialogs() {
+    const confirmButtons = document.querySelectorAll('[data-confirm]');
+    confirmButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            const message = this.getAttribute('data-confirm');
+            if (!confirm(message)) {
+                e.preventDefault();
+                return false;
             }
         });
+    });
+}
+
+// 初始化文件拖拽上传
+function initializeFileDragAndDrop() {
+    const fileInputs = document.querySelectorAll('input[type="file"]');
+    fileInputs.forEach(input => {
+        const container = input.closest('.file-upload-container') || input.parentElement;
         
-        // 拖拽上传支持
-        const parent = input.closest('.form-group') || input.parentElement;
-        if (parent) {
-            parent.addEventListener('dragover', handleDragOver);
-            parent.addEventListener('drop', handleDrop);
-            parent.addEventListener('dragleave', handleDragLeave);
+        if (container) {
+            container.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.classList.add('dragover');
+            });
+            
+            container.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                this.classList.remove('dragover');
+            });
+            
+            container.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    input.files = files;
+                    // 触发change事件
+                    const event = new Event('change', { bubbles: true });
+                    input.dispatchEvent(event);
+                }
+            });
         }
     });
 }
 
-// 显示文件信息
-function displayFileInfo(file, input) {
-    const fileInfo = document.createElement('div');
-    fileInfo.className = 'file-info mt-2 p-2 bg-light rounded';
-    fileInfo.innerHTML = `
-        <small class="text-muted">
-            <i class="fas fa-file me-1"></i>
-            ${file.name} (${formatFileSize(file.size)})
-        </small>
-    `;
-    
-    // 移除之前的文件信息
-    const existingInfo = input.parentElement.querySelector('.file-info');
-    if (existingInfo) {
-        existingInfo.remove();
-    }
-    
-    input.parentElement.appendChild(fileInfo);
-}
-
-// 格式化文件大小
-function formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-// 拖拽上传处理
-function handleDragOver(e) {
-    e.preventDefault();
-    e.currentTarget.classList.add('drag-area', 'dragover');
-}
-
-function handleDrop(e) {
-    e.preventDefault();
-    e.currentTarget.classList.remove('drag-area', 'dragover');
-    
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-        const fileInput = e.currentTarget.querySelector('input[type="file"]');
-        if (fileInput) {
-            fileInput.files = files;
-            fileInput.dispatchEvent(new Event('change'));
-        }
-    }
-}
-
-function handleDragLeave(e) {
-    e.currentTarget.classList.remove('drag-area', 'dragover');
-}
-
-// 搜索和筛选功能
-function initSearchAndFilter() {
-    const searchForm = document.querySelector('form[method="get"]');
-    if (searchForm) {
-        const inputs = searchForm.querySelectorAll('input, select');
+// 初始化搜索功能
+function initializeSearch() {
+    const searchForms = document.querySelectorAll('.search-form');
+    searchForms.forEach(form => {
+        const searchInput = form.querySelector('input[type="search"]');
+        const clearButton = form.querySelector('.search-clear');
         
-        inputs.forEach(input => {
-            input.addEventListener('change', function() {
-                // 自动提交表单
-                searchForm.submit();
-            });
-        });
-        
-        // 搜索框实时搜索（延迟执行）
-        const searchInput = searchForm.querySelector('input[name="search"]');
-        if (searchInput) {
+        if (searchInput && clearButton) {
+            // 实时搜索
             let searchTimeout;
             searchInput.addEventListener('input', function() {
                 clearTimeout(searchTimeout);
                 searchTimeout = setTimeout(() => {
-                    searchForm.submit();
+                    if (this.value.length >= 2 || this.value.length === 0) {
+                        form.submit();
+                    }
                 }, 500);
             });
-        }
-    }
-}
-
-// 表格交互功能
-function initTableInteractions() {
-    const tables = document.querySelectorAll('.table');
-    
-    tables.forEach(table => {
-        // 行选择功能
-        const rows = table.querySelectorAll('tbody tr');
-        rows.forEach(row => {
-            row.addEventListener('click', function(e) {
-                // 如果点击的不是按钮或链接，则选中行
-                if (!e.target.closest('a, button, input')) {
-                    toggleRowSelection(this);
-                }
-            });
-        });
-        
-        // 全选功能
-        const selectAllCheckbox = table.querySelector('thead input[type="checkbox"]');
-        if (selectAllCheckbox) {
-            selectAllCheckbox.addEventListener('change', function() {
-                const checkboxes = table.querySelectorAll('tbody input[type="checkbox"]');
-                checkboxes.forEach(checkbox => {
-                    checkbox.checked = this.checked;
-                });
-                updateBulkActions();
+            
+            // 清除搜索
+            clearButton.addEventListener('click', function() {
+                searchInput.value = '';
+                form.submit();
             });
         }
     });
 }
 
-// 切换行选择状态
-function toggleRowSelection(row) {
-    const checkbox = row.querySelector('input[type="checkbox"]');
-    if (checkbox) {
-        checkbox.checked = !checkbox.checked;
-        updateBulkActions();
-    }
-}
-
-// 更新批量操作按钮
-function updateBulkActions() {
-    const checkboxes = document.querySelectorAll('tbody input[type="checkbox"]:checked');
-    const bulkActions = document.querySelector('.bulk-actions');
-    
-    if (bulkActions) {
-        if (checkboxes.length > 0) {
-            bulkActions.style.display = 'block';
-            bulkActions.querySelector('.selected-count').textContent = checkboxes.length;
-        } else {
-            bulkActions.style.display = 'none';
-        }
-    }
-}
-
-// 动画效果
-function initAnimations() {
-    // 页面加载动画
-    const cards = document.querySelectorAll('.card');
-    cards.forEach((card, index) => {
-        card.style.opacity = '0';
-        card.style.transform = 'translateY(30px)';
-        
-        setTimeout(() => {
-            card.style.transition = 'all 0.6s ease';
-            card.style.opacity = '1';
-            card.style.transform = 'translateY(0)';
-        }, index * 100);
-    });
-    
-    // 滚动动画
-    const observerOptions = {
-        threshold: 0.1,
-        rootMargin: '0px 0px -50px 0px'
-    };
-    
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.classList.add('fade-in-up');
+// 初始化分页
+function initializePagination() {
+    const paginationLinks = document.querySelectorAll('.pagination .page-link');
+    paginationLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            if (this.getAttribute('href') === '#') {
+                e.preventDefault();
+                return false;
             }
         });
-    }, observerOptions);
-    
-    document.querySelectorAll('.card, .alert').forEach(el => {
-        observer.observe(el);
     });
 }
 
-// 消息提示功能
+// 显示消息提示
 function showMessage(message, type = 'info', duration = 5000) {
     const alertDiv = document.createElement('div');
     alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
@@ -208,6 +132,7 @@ function showMessage(message, type = 'info', duration = 5000) {
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     `;
     
+    // 插入到页面顶部
     const container = document.querySelector('.container');
     if (container) {
         container.insertBefore(alertDiv, container.firstChild);
@@ -221,80 +146,71 @@ function showMessage(message, type = 'info', duration = 5000) {
     }
 }
 
-// 确认对话框
-function confirmAction(message, callback) {
-    if (confirm(message)) {
-        callback();
+// 显示加载状态
+function showLoading(element, text = '加载中...') {
+    if (element) {
+        element.disabled = true;
+        element.innerHTML = `<span class="loading-spinner me-2"></span>${text}`;
     }
 }
 
-// 文件上传进度
-function updateUploadProgress(percent) {
-    const progressBar = document.querySelector('.upload-progress .progress-bar');
-    if (progressBar) {
-        progressBar.style.width = percent + '%';
-        progressBar.textContent = percent + '%';
+// 隐藏加载状态
+function hideLoading(element, originalText) {
+    if (element) {
+        element.disabled = false;
+        element.innerHTML = originalText;
     }
 }
 
-// 表格排序功能
-function sortTable(table, columnIndex, type = 'string') {
-    const tbody = table.querySelector('tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
+// 格式化文件大小
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
     
-    rows.sort((a, b) => {
-        const aValue = a.cells[columnIndex].textContent.trim();
-        const bValue = b.cells[columnIndex].textContent.trim();
-        
-        if (type === 'number') {
-            return parseFloat(aValue) - parseFloat(bValue);
-        } else if (type === 'date') {
-            return new Date(aValue) - new Date(bValue);
-        } else {
-            return aValue.localeCompare(bValue);
-        }
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// 格式化日期时间
+function formatDateTime(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
     });
-    
-    // 重新插入排序后的行
-    rows.forEach(row => tbody.appendChild(row));
 }
 
-// 导出功能
-function exportTableData(format = 'csv') {
-    const table = document.querySelector('.table');
-    if (!table) return;
-    
-    const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
-    const rows = Array.from(table.querySelectorAll('tbody tr')).map(row => 
-        Array.from(row.querySelectorAll('td')).map(td => td.textContent.trim())
-    );
-    
-    if (format === 'csv') {
-        exportToCSV(headers, rows);
+// 复制到剪贴板
+function copyToClipboard(text) {
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(() => {
+            showMessage('已复制到剪贴板', 'success');
+        }).catch(() => {
+            showMessage('复制失败', 'danger');
+        });
+    } else {
+        // 降级方案
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            showMessage('已复制到剪贴板', 'success');
+        } catch (err) {
+            showMessage('复制失败', 'danger');
+        }
+        document.body.removeChild(textArea);
     }
 }
 
-// 导出为CSV
-function exportToCSV(headers, rows) {
-    const csvContent = [
-        headers.join(','),
-        ...rows.map(row => row.join(','))
-    ].join('\n');
-    
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    
-    link.setAttribute('href', url);
-    link.setAttribute('download', 'file_transfer_history.csv');
-    link.style.visibility = 'hidden';
-    
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
-
-// 工具函数
+// 防抖函数
 function debounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {
@@ -307,6 +223,7 @@ function debounce(func, wait) {
     };
 }
 
+// 节流函数
 function throttle(func, limit) {
     let inThrottle;
     return function() {
@@ -319,3 +236,15 @@ function throttle(func, limit) {
         }
     };
 }
+
+// 导出函数到全局作用域
+window.FileTransferSystem = {
+    showMessage,
+    showLoading,
+    hideLoading,
+    formatFileSize,
+    formatDateTime,
+    copyToClipboard,
+    debounce,
+    throttle
+};

@@ -1,5 +1,28 @@
 from django import forms
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
 from .models import FileTransfer
+
+class UserRegistrationForm(UserCreationForm):
+    """用户注册表单"""
+    email = forms.EmailField(required=True, help_text='必填。请输入有效的邮箱地址。')
+    
+    class Meta:
+        model = User
+        fields = ('username', 'email', 'password1', 'password2')
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # 自定义字段标签
+        self.fields['username'].label = '用户名'
+        self.fields['email'].label = '邮箱'
+        self.fields['password1'].label = '密码'
+        self.fields['password2'].label = '确认密码'
+        
+        # 自定义帮助文本
+        self.fields['username'].help_text = '必填。150个字符或更少。只能包含字母、数字和下划线。'
+        self.fields['password1'].help_text = '您的密码不能与您的其他个人信息太相似。您的密码必须包含至少8个字符。您的密码不能是常用密码。您的密码不能全是数字。'
+        self.fields['password2'].help_text = '请再次输入您的密码进行确认。'
 
 class FileUploadForm(forms.ModelForm):
     file = forms.FileField(
