@@ -1,0 +1,192 @@
+{% extends 'file_transfer/base.html' %}
+
+{% block title %}传输历史 - 文件传输系统{% endblock %}
+
+{% block page_title %}传输历史{% endblock %}
+
+{% block content %}
+<!-- 搜索和筛选 -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label for="search" class="form-label">搜索文件</label>
+                <input type="text" class="form-control" id="search" name="search" 
+                       value="{{ search_query }}" placeholder="文件名、描述或标签">
+            </div>
+            <div class="col-md-3">
+                <label for="status" class="form-label">状态筛选</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="">全部状态</option>
+                    {% for status_code, status_name in status_choices %}
+                        <option value="{{ status_code }}" {% if status_filter == status_code %}selected{% endif %}>
+                            {{ status_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="file_type" class="form-label">文件类型</label>
+                <input type="text" class="form-control" id="file_type" name="file_type" 
+                       value="{{ file_type_filter }}" placeholder="如: image/jpeg">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search me-1"></i>搜索
+                    </button>
+                </div>
+            </div>
+        </form>
+        
+        {% if search_query or status_filter or file_type_filter %}
+            <div class="mt-3">
+                <a href="{% url 'file_transfer:file_history' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-times me-1"></i>清除筛选
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 文件列表 -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-list me-2"></i>文件列表
+        </h5>
+        <span class="badge bg-secondary">{{ page_obj.paginator.count }} 个文件</span>
+    </div>
+    <div class="card-body">
+        {% if page_obj %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>文件名</th>
+                            <th>大小</th>
+                            <th>类型</th>
+                            <th>状态</th>
+                            <th>上传时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for file in page_obj %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    {% if file.is_image %}
+                                        <i class="fas fa-image text-primary me-2"></i>
+                                    {% else %}
+                                        <i class="fas fa-file text-secondary me-2"></i>
+                                    {% endif %}
+                                    <div>
+                                        <a href="{% url 'file_transfer:file_detail' file.id %}" class="text-decoration-none">
+                                            {{ file.original_name|truncatechars:40 }}
+                                        </a>
+                                        {% if file.description %}
+                                            <br><small class="text-muted">{{ file.description|truncatechars:50 }}</small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            <td>{{ file.get_file_size_display }}</td>
+                            <td>
+                                <small class="text-muted">{{ file.file_type|truncatechars:20 }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-{% if file.status == 'completed' %}success{% elif file.status == 'failed' %}danger{% elif file.status == 'processing' %}warning{% else %}secondary{% endif %}">
+                                    {{ file.get_status_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <small>{{ file.uploaded_at|date:"Y-m-d H:i" }}</small>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{% url 'file_transfer:file_download' file.id %}" 
+                                       class="btn btn-outline-primary" title="下载">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                    <a href="{% url 'file_transfer:file_detail' file.id %}" 
+                                       class="btn btn-outline-info" title="详情">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{% url 'file_transfer:file_delete' file.id %}" 
+                                       class="btn btn-outline-danger" title="删除">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- 分页 -->
+            {% if page_obj.has_other_pages %}
+                <nav aria-label="文件列表分页">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if file_type_filter %}&file_type={{ file_type_filter }}{% endif %}">
+                                    <i class="fas fa-angle-double-left"></i>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if file_type_filter %}&file_type={{ file_type_filter }}{% endif %}">
+                                    <i class="fas fa-angle-left"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if file_type_filter %}&file_type={{ file_type_filter }}{% endif %}">
+                                        {{ num }}
+                                    </a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if file_type_filter %}&file_type={{ file_type_filter }}{% endif %}">
+                                    <i class="fas fa-angle-right"></i>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if file_type_filter %}&file_type={{ file_type_filter }}{% endif %}">
+                                    <i class="fas fa-angle-double-right"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                
+                <div class="text-center text-muted">
+                    显示第 {{ page_obj.start_index }} - {{ page_obj.end_index }} 条，共 {{ page_obj.paginator.count }} 条记录
+                </div>
+            {% endif %}
+            
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">暂无文件记录</h5>
+                <p class="text-muted">开始上传您的第一个文件吧！</p>
+                <a href="{% url 'file_transfer:file_upload' %}" class="btn btn-primary">
+                    <i class="fas fa-upload me-2"></i>上传文件
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
