@@ -118,9 +118,7 @@
             let sessionTimeout;
             const TIMEOUT_MINUTES = 5;
             const TIMEOUT_MS = TIMEOUT_MINUTES * 60 * 1000;
-            const HEARTBEAT_INTERVAL = 30000; // 30秒发送一次心跳
-            
-            // 更新最后活动时间
+            // 更新最后活动时间（仅在用户有真实交互时调用）
             function updateLastActivity() {
                 fetch('{% url "file_transfer:check_session" %}', {
                     method: 'POST',
@@ -145,7 +143,6 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'expired') {
-                        // 会话过期，显示提示并跳转到登录页
                         alert('您的会话已过期，请重新登录');
                         window.location.href = '{% url "file_transfer:custom_login" %}';
                     }
@@ -156,8 +153,9 @@
             // 重置超时计时器
             function resetTimeout() {
                 clearTimeout(sessionTimeout);
+                // 只有在用户活动时才更新最后活动时间，避免无操作被心跳保活
+                updateLastActivity();
                 sessionTimeout = setTimeout(() => {
-                    // 5分钟无操作，自动断开
                     alert('由于长时间无操作，您的会话已自动断开，请重新登录');
                     window.location.href = '{% url "file_transfer:custom_login" %}';
                 }, TIMEOUT_MS);
@@ -168,9 +166,6 @@
             events.forEach(event => {
                 document.addEventListener(event, resetTimeout, true);
             });
-            
-            // 定期发送心跳
-            setInterval(updateLastActivity, HEARTBEAT_INTERVAL);
             
             // 定期检查会话状态
             setInterval(checkSession, 60000); // 每分钟检查一次
