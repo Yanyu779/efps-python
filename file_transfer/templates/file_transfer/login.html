@@ -84,12 +84,27 @@
                                            required autofocus placeholder="请输入用户名">
                                 </div>
                                 
-                                <div class="mb-4">
+                                <div class="mb-3">
                                     <label for="password" class="form-label">
                                         <i class="fas fa-lock me-2"></i>密码
                                     </label>
                                     <input type="password" class="form-control" id="password" name="password" 
                                            required placeholder="请输入密码">
+                                </div>
+
+                                <div class="mb-4">
+                                    <label for="captcha" class="form-label">
+                                        <i class="fas fa-shield-halved me-2"></i>验证码
+                                    </label>
+                                    <div class="d-flex align-items-center gap-3">
+                                        <input type="text" class="form-control" id="captcha" name="captcha" 
+                                               required placeholder="请输入上图中的字符（不区分大小写）">
+                                        <img id="captcha-img" src="{% url 'file_transfer:captcha' %}" alt="captcha" 
+                                             class="rounded" style="height:44px; cursor:pointer;" title="点击刷新验证码">
+                                        <button type="button" id="refresh-captcha" class="btn btn-outline-secondary">
+                                            <i class="fas fa-rotate"></i>
+                                        </button>
+                                    </div>
                                 </div>
                                 
                                 <div class="d-grid">
@@ -98,6 +113,21 @@
                                     </button>
                                 </div>
                             </form>
+                            
+                            <script>
+                                (function(){
+                                    const img = document.getElementById('captcha-img');
+                                    const btn = document.getElementById('refresh-captcha');
+                                    function refresh() {
+                                        // 通过query参数强制刷新
+                                        const url = new URL(img.src, window.location.origin);
+                                        url.searchParams.set('t', Date.now());
+                                        img.src = url.toString();
+                                    }
+                                    img && img.addEventListener('click', refresh);
+                                    btn && btn.addEventListener('click', refresh);
+                                })();
+                            </script>
                             
                             <div class="text-center mt-4">
                                 <small class="text-muted">
