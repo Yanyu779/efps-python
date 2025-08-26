@@ -23,6 +23,8 @@ class SessionTimeoutMiddleware:
                     
                     # 如果超过5分钟，自动登出
                     if time_diff.total_seconds() > 300:
+                        # 确保彻底登出并清理会话
+                        request.session.flush()
                         logout(request)
                         # 对于AJAX请求，返回JSON响应
                         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -31,7 +33,7 @@ class SessionTimeoutMiddleware:
                                 'status': 'expired',
                                 'message': 'Session expired due to inactivity',
                                 'redirect_url': reverse('file_transfer:custom_login')
-                            })
+                            }, status=401)
                         # 对于普通请求，重定向到登录页
                         return redirect('file_transfer:custom_login')
                 except (ValueError, TypeError):
