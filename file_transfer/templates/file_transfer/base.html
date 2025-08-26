@@ -118,62 +118,21 @@
             let sessionTimeout;
             const TIMEOUT_MINUTES = 5;
             const TIMEOUT_MS = TIMEOUT_MINUTES * 60 * 1000;
-            // 更新最后活动时间（仅在用户有真实交互时调用）
-            function updateLastActivity() {
-                fetch('{% url "file_transfer:check_session" %}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
-                    },
-                    body: JSON.stringify({action: 'heartbeat'})
-                }).catch(console.error);
-            }
-            
-            // 检查会话状态
-            function checkSession() {
-                fetch('{% url "file_transfer:check_session" %}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
-                    },
-                    body: JSON.stringify({action: 'check'})
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'expired') {
-                        alert('您的会话已过期，请重新登录');
-                        window.location.href = '{% url "file_transfer:custom_login" %}';
-                    }
-                })
-                .catch(console.error);
-            }
-            
-            // 重置超时计时器
+
             function resetTimeout() {
                 clearTimeout(sessionTimeout);
-                // 只有在用户活动时才更新最后活动时间，避免无操作被心跳保活
-                updateLastActivity();
                 sessionTimeout = setTimeout(() => {
                     alert('由于长时间无操作，您的会话已自动断开，请重新登录');
                     window.location.href = '{% url "file_transfer:custom_login" %}';
                 }, TIMEOUT_MS);
             }
-            
-            // 监听用户活动
+
             const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
             events.forEach(event => {
                 document.addEventListener(event, resetTimeout, true);
             });
-            
-            // 定期检查会话状态
-            setInterval(checkSession, 60000); // 每分钟检查一次
-            
-            // 初始化超时计时器
+
             resetTimeout();
-            
-            // 页面卸载前清理
             window.addEventListener('beforeunload', () => {
                 clearTimeout(sessionTimeout);
             });
