@@ -10,32 +10,86 @@ from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 import os
 import json
+import io
+import random
+import string
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from .models import FileTransfer
 from .forms import FileUploadForm, UserRegistrationForm
 from django.db import models
 
+def _generate_captcha_text(length: int = 5) -> str:
+	return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
+
+def _generate_captcha_image(code: str) -> bytes:
+	width, height = 140, 44
+	image = Image.new('RGB', (width, height), (255, 255, 255))
+	draw = ImageDraw.Draw(image)
+	# 背景噪点
+	for _ in range(150):
+		x1 = random.randint(0, width)
+		y1 = random.randint(0, height)
+		draw.point((x1, y1), fill=(random.randint(150,200), random.randint(150,200), random.randint(150,200)))
+	
+	# 字体（回退到默认字体）
+	try:
+		font = ImageFont.truetype("arial.ttf", 28)
+	except Exception:
+		font = ImageFont.load_default()
+	
+	# 绘制字符
+	for i, ch in enumerate(code):
+		x = 15 + i * 22 + random.randint(-2, 2)
+		y = 10 + random.randint(-3, 3)
+		draw.text((x, y), ch, font=font, fill=(random.randint(0,120), random.randint(0,120), random.randint(0,120)))
+	
+	# 干扰线
+	for _ in range(5):
+		x1 = random.randint(0, width)
+		y1 = random.randint(0, height)
+		x2 = random.randint(0, width)
+		y2 = random.randint(0, height)
+		draw.line(((x1, y1), (x2, y2)), fill=(random.randint(120,180), random.randint(120,180), random.randint(120,180)), width=1)
+	
+	image = image.filter(ImageFilter.SMOOTH)
+	buf = io.BytesIO()
+	image.save(buf, 'PNG')
+	return buf.getvalue()
+
+def generate_captcha(request):
+	"""生成验证码图片并保存到会话"""
+	code = _generate_captcha_text()
+	request.session['login_captcha'] = code
+	img_bytes = _generate_captcha_image(code)
+	return HttpResponse(img_bytes, content_type='image/png')
+
 def custom_login(request):
-    """自定义登录视图"""
-    if request.user.is_authenticated:
-        return redirect('file_transfer:dashboard')
-    
-    if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
-        user = authenticate(request, username=username, password=password)
-        
-        if user is not None:
-            login(request, user)
-            # 设置会话最后活动时间
-            request.session['last_activity'] = timezone.now().isoformat()
-            messages.success(request, f'欢迎回来，{user.username}！')
-            return redirect('file_transfer:dashboard')
-        else:
-            messages.error(request, '用户名或密码错误')
-    
-    return render(request, 'file_transfer/login.html', {
-        'title': '用户登录'
-    })
+	"""自定义登录视图，加入验证码校验"""
+	if request.user.is_authenticated:
+		return redirect('file_transfer:dashboard')
+	
+	if request.method == 'POST':
+		username = request.POST.get('username')
+		password = request.POST.get('password')
+		captcha = request.POST.get('captcha', '').strip().upper()
+		session_code = (request.session.get('login_captcha') or '').upper()
+		if not captcha or captcha != session_code:
+			messages.error(request, '验证码错误，请重试')
+			return render(request, 'file_transfer/login.html', {'title': '用户登录'})
+		user = authenticate(request, username=username, password=password)
+		if user is not None:
+			login(request, user)
+			request.session['last_activity'] = timezone.now().isoformat()
+			# 使用一次后立即使验证码失效
+			request.session.pop('login_captcha', None)
+			messages.success(request, f'欢迎回来，{user.username}！')
+			return redirect('file_transfer:dashboard')
+		else:
+			messages.error(request, '用户名或密码错误')
+	
+	return render(request, 'file_transfer/login.html', {
+		'title': '用户登录'
+	})
 
 def custom_logout(request):
     """自定义登出视图"""
