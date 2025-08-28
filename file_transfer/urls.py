@@ -5,7 +5,6 @@ app_name = 'file_transfer'
 
 urlpatterns = [
     path('login/', views.custom_login, name='custom_login'),
-    path('register/', views.user_register, name='user_register'),
     path('logout/', views.custom_logout, name='custom_logout'),
     path('check-session/', views.check_session, name='check_session'),
     path('', views.dashboard, name='dashboard'),

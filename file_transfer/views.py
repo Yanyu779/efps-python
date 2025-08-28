@@ -11,7 +11,7 @@ from django.views.decorators.csrf import csrf_exempt
 import os
 import json
 from .models import FileTransfer
-from .forms import FileUploadForm, UserRegistrationForm
+from .forms import FileUploadForm
 from django.db import models
 
 def custom_login(request):
@@ -226,23 +226,4 @@ def dashboard(request):
         'recent_files': recent_files,
         'file_type_stats': file_type_stats,
         'title': '仪表板'
-    })
-
-def user_register(request):
-    """用户注册视图"""
-    if request.user.is_authenticated:
-        return redirect('file_transfer:dashboard')
-    
-    if request.method == 'POST':
-        form = UserRegistrationForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            messages.success(request, f'账户 {user.username} 创建成功！请登录。')
-            return redirect('file_transfer:custom_login')
-    else:
-        form = UserRegistrationForm()
-    
-    return render(request, 'file_transfer/register.html', {
-        'form': form,
-        'title': '用户注册'
     })
